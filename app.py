@@ -1,7 +1,7 @@
 import json
 from flask import Flask, render_template
 from flask_socketio import SocketIO, send, emit
-import subprocess
+from agent import train
 
 class GameState:
     def __init__(self, snake, food, score, direction, game_over=False):
@@ -22,13 +22,15 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def test_conect():
+def test_connect():
     print('Connection established')
 
 @socketio.on('message')
 def handle_message(message):
-    updatedGameState = GameState(message['snake'], message['food'], message['score'], [0, 1, 0], message['game_over'])
-
+    gameState = GameState(message['snake'], message['food'], message['score'], message['direction'], message['game_over'])
+    train(gameState)
+    updatedGameState = gameState
+    updatedGameState.direction = [0,1,0]
     socketio.emit('message', json.dumps(updatedGameState.__dict__))
 
 
