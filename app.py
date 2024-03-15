@@ -10,6 +10,9 @@ class GameState:
         self.score = score
         self.direction = direction
         self.game_over = game_over
+    
+    def __repr__(self):
+        return json.dumps(self.__dict__)
 
 app = Flask(__name__)
 socketio = SocketIO(app, logger=True)
@@ -20,15 +23,13 @@ def index():
 
 @socketio.on('connect')
 def test_conect():
-    print('my response', {'data': 'Connected'})
+    print('Connection established')
 
 @socketio.on('message')
 def handle_message(message):
-    # GameState = GameState({'snake': [], 'food': [], 'score': 0, 'direction': 'right', 'game_over': False})
-    # print('my response', GameState)
-    # socketio.emit('message', GameState)
-    print(message)
-    socketio.emit('message', {'data': message})
+    updatedGameState = GameState(message['snake'], message['food'], message['score'], [0, 1, 0], message['game_over'])
+
+    socketio.emit('message', json.dumps(updatedGameState.__dict__))
 
 
 if __name__ == '__main__':

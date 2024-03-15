@@ -71,6 +71,7 @@ const move = () => {
         increaseSpeed();
         clearInterval(gameInterval)
         gameInterval = setInterval(() => {
+            socket.emit('message', new GameState(snake, food, score, direction, gameOver));
             move();
             checkCollision();
             draw();
@@ -108,13 +109,11 @@ const checkCollision = () => {
 
 // Food Functions
 function generateFood() {
-    const x = Math.floor(Math.random() * (gridSize - 2)) + 1;
-    const y = Math.floor(Math.random() * (gridSize - 2)) + 1;
-    snake.forEach(segment => {
-        if (segment[0] === x && segment[1] === y) {
-            generateFood();
-        }
-    })
+    let x, y;
+    do {
+        x = Math.floor(Math.random() * (gridSize - 2)) + 1;
+        y = Math.floor(Math.random() * (gridSize - 2)) + 1;
+    } while (snake.some(segment => segment[0] === x && segment[1] === y));
     return [x, y]
 }
 
@@ -159,10 +158,8 @@ const startGame = () => {
     snake.push([10, 10]);
     food = generateFood();
     gameOver = false;
-    setInterval(() => {
-        socket.emit('message', new GameState(snake, food, score, direction, gameOver))
-    }, 500)
     gameInterval = setInterval(() => {
+        socket.emit('message', new GameState(snake, food, score, direction, gameOver));
         move();
         checkCollision();
         draw();
@@ -186,12 +183,30 @@ const resetGame = () => {
 const socket = io();
 
 socket.on('message', function(message) {
-    snake = message.data.snake
-    food = message.data.food;
-    score = message.data.score;
-    direction = message.data.direction;
-    gameOver = message.data.game_over;
-    draw();
+    updatedGameState = JSON.parse(message);
+    if (updatedGameState.direction == [1, 0, 0]) { // left
+        if (direction === 'up') {
+            direction = 'left';
+        } else if (direction === 'left') {
+            direction = 'down';
+        } else if (direction === 'down') {
+            direction = 'right';
+        } else if (direction === 'right') {
+            direction = 'up';
+        }
+    } else if (updatedGameState.direction == [0, 1, 0]) { // straight
+        pass;
+    } else if (updatedGameState.direction == [0, 0, 1]) { // right
+        if (direction === 'up') {
+            direction = 'right';
+        } else if (direction === 'right') {
+            direction = 'down';
+        } else if (direction === 'down') {
+            direction = 'left';
+        } else if (direction === 'left') {
+            direction = 'up';
+        }
+    }
 })
 
 
