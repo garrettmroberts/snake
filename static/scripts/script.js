@@ -4,9 +4,9 @@ const instructionText = document.getElementById('instruction-text');
 const currentScore = document.getElementById('score');
 const currentHighScore = document.getElementById('high-score');
 const highScoreContainer = document.getElementById('high-score-container');
-console.log(highScoreContainer)
 
 
+// Game variables
 const gridSize = 20;
 let snake = [];
 let food = [];
@@ -15,8 +15,23 @@ let highScore = 0;
 let direction = 'right';
 let gameIsStarted = false;
 let gameSpeedDelay = 200;
+let gameOver = false;
 let gameInterval;
 
+
+// Game state class (for websocket transfer)
+class GameState {
+    constructor(snake, food, score, direction, game_over) {
+        this.snake = snake;
+        this.food = food;
+        this.score = score;
+        this.direction = direction;
+        this.game_over = game_over;
+    }
+}
+
+
+// Drawing Functions
 const draw = () => {
     board.innerHTML = '';
     drawSnake();
@@ -32,6 +47,8 @@ const drawSnake = () => {
     })
 }
 
+
+// Movement Functions
 const move = () => {
     const head = { ...snake[0] }
     switch(direction) {
@@ -64,7 +81,6 @@ const move = () => {
 }
 
 const increaseSpeed = () => {
-    console.log(gameSpeedDelay)
     if (gameSpeedDelay > 150) {
     gameSpeedDelay -= 5;
   } else if (gameSpeedDelay > 100) {
@@ -89,9 +105,11 @@ const checkCollision = () => {
     }
 }
 
+
+// Food Functions
 function generateFood() {
-    const x = Math.floor(Math.random() * gridSize) + 1;
-    const y = Math.floor(Math.random() * gridSize) + 1;
+    const x = Math.floor(Math.random() * (gridSize - 2)) + 1;
+    const y = Math.floor(Math.random() * (gridSize - 2)) + 1;
     snake.forEach(segment => {
         if (segment[0] === x && segment[1] === y) {
             generateFood();
@@ -109,6 +127,7 @@ const drawFood = () => {
 }
 
 
+// Utility Functions
 const createGameElement = (tag, className) => {
     const element = document.createElement(tag);
     element.className = className;
@@ -120,6 +139,8 @@ const setPosition = (element, position) => {
     element.style.gridRow = position[1];
 }
 
+
+// Score Functions
 const updateScore = () => {
     score = snake.length;
     currentScore.textContent = score.toString().padStart(3, '0');
@@ -130,11 +151,17 @@ const updateScore = () => {
     }
 }
 
+
+// Game Operation Functions
 const startGame = () => {
     gameIsStarted = true;
     instructionText.style.display = 'none';
     snake.push([10, 10]);
     food = generateFood();
+    gameOver = false;
+    setInterval(() => {
+        socket.emit('message', new GameState(snake, food, score, direction, gameOver))
+    }, 500)
     gameInterval = setInterval(() => {
         move();
         checkCollision();
@@ -149,10 +176,26 @@ const resetGame = () => {
     food = []
     direction = 'right';
     gameSpeedDelay = 200;
-    score = 0
+    score = 0;
+    gameOver = true;
     clearInterval(gameInterval);
 }
 
+
+// Websocket
+const socket = io();
+
+socket.on('message', function(message) {
+    snake = message.data.snake
+    food = message.data.food;
+    score = message.data.score;
+    direction = message.data.direction;
+    gameOver = message.data.game_over;
+    draw();
+})
+
+
+// Keypress Functions
 const handleKeyPress = (e) => {
     if (e.code === 'Space' && !gameIsStarted) {
         startGame();
@@ -169,9 +212,9 @@ const handleKeyPress = (e) => {
             break;
         case 'ArrowRight':
             direction = 'right';
-            break;
-        
+            break; 
     }
 }
 
+// Event Listeners
 document.addEventListener('keydown', handleKeyPress)
